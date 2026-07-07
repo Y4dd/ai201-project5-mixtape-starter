@@ -78,3 +78,12 @@ Each bug is worked as its own GitHub issue (#1–#5 on the fork) through a full 
 14. Add/finalize that issue's root-cause-analysis entry in `submission.md` before starting the next issue — write it while the investigation is fresh, not in a batch at the end.
 
 Each of `project.md`'s 4 milestones also gets its own short planning pass before execution — don't roll straight from finishing one milestone's checklist into the next without at least a brief plan for how you'll approach it.
+
+## Managing context across a long multi-issue run
+
+Executing the bug-fix plan (`docs/superpowers/plans/2026-07-07-mixtape-bug-fix-workflow.md`) across all 5 issues involves many subagent dispatches and can fill the context window well before all 16 tasks are done. Don't try to push through on a nearly-full context — checkpoint and clear instead:
+
+- **Checkpoint before clearing**: check off completed steps in the plan file's `- [ ]` checklists (this is the actual source of truth for progress, not conversation memory), and make sure `git log`, `gh pr list`, and `gh issue list` on the repo reflect reality. If a task is mid-flight (e.g. implemented but not yet reviewed), leave a one-line note under its checkbox saying exactly what's left, the way Task 0's does.
+- **Natural clearing boundaries**: the end of any task (0, Na, Nb, Nc), preferably right after a review stage passes or a squash-merge completes — not mid-investigation and not mid-review.
+- **On resuming after a clear**: don't reconstruct progress from memory. Re-derive it from the plan file's checkboxes (what's done), `git log --oneline bugfix/mixtape` (what's merged), `gh issue list` (what's still open), and this file. Resume at the first unchecked step.
+- This applies beyond this one plan too: for any long-running multi-task execution in this repo, prefer externalizing progress to files (plan checkboxes, commits, GitHub issues/PRs) over relying on context surviving the whole run.
