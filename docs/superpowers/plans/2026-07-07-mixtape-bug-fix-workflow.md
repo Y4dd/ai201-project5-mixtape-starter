@@ -8,6 +8,8 @@
 
 **Tech Stack:** Flask, SQLAlchemy 2.0, pytest, `gh` CLI, git.
 
+**Workflow change (2026-07-07, effective from Issue #2 onward):** user decided all fixes commit directly onto `bugfix/mixtape` — no per-issue branch (`gh issue develop`), no PR, no squash-merge, no branch cleanup. For every remaining issue task below (2b/2c through 5b/5c), skip any step that creates a branch, pushes it, opens a PR, merges a PR, or deletes a branch — everything else (investigate, human-confirmation gate, TDD fix, commit directly to `bugfix/mixtape`, issue comment, code review, RCA entry in `submission.md`, explicit `gh issue close <N>`) still applies. This also sidesteps a sandbox restriction in this environment where `gh issue develop`'s branch-tracking setup needs to write `.git/config`, which is blocked by default.
+
 **Cross-issue entanglement:** if any Investigate task's confirmed root cause turns out to overlap with another of the 5 issues, stop before starting that issue's Confirm & Fix task and surface it — decide with the user whether to split the fix or handle it as a combined PR closing both issues, rather than silently bundling two issues into one branch.
 
 **Note on deferred content:** Task steps below contain complete, exact commands and prompts for everything that's knowable now. The one narrow exception is fix/test code tied to a not-yet-confirmed root cause (Tasks 1b/2b/3b/4b/5b, Step 3 onward) — that content is discovered by the Investigate task and confirmed by the human, which is the pipeline's entire purpose, not an oversight. Each such step says exactly what to base the code on and where it goes.
@@ -238,7 +240,7 @@ git branch -d issue-1-streak-sunday-reset
 
 **Files:** None — read-only investigation.
 
-- [ ] **Step 1: Fetch the issue and create the linked branch**
+- [x] **Step 1: Fetch the issue**
 
 ```bash
 gh issue view 2 --repo Y4dd/ai201-project5-mixtape-starter --json title,body,url -q '.title, .url, .body'
@@ -258,12 +260,10 @@ https://github.com/Y4dd/ai201-project5-mixtape-starter/issues/2
 **Expected:** only friends who have listened **today** appear.
 **Actual:** friends whose last listen was yesterday evening still show up the next morning.
 ```
-Then:
-```bash
-gh issue develop 2 --repo Y4dd/ai201-project5-mixtape-starter --base bugfix/mixtape --name issue-2-feed-stale-yesterday --checkout
-```
 
-- [ ] **Step 2: Dispatch the investigation subagent**
+**Workflow change (2026-07-07):** user decided all bug fixes from Issue #2 onward commit directly onto `bugfix/mixtape` — no per-issue branch, no PR, no squash-merge. No linked branch is created for this issue; work happens directly on `bugfix/mixtape`. See CLAUDE.md's per-issue SDLC steps 2, 9-11, which this supersedes for the remainder of this plan.
+
+- [x] **Step 2: Dispatch the investigation subagent**
 
 Use the Agent tool (`subagent_type: "Explore"`, `run_in_background: false`) with exactly this prompt:
 
@@ -296,7 +296,7 @@ Your task:
 Do not modify any files. Do not propose fix code. Stop after reporting the hypothesis.
 ```
 
-- [ ] **Step 3: Relay the hypothesis**
+- [x] **Step 3: Relay the hypothesis**
 
 Report the subagent's hypothesis, file/line, and evidence back to the user in full. Handoff to Task 2b — do not proceed further here.
 
@@ -306,17 +306,11 @@ Report the subagent's hypothesis, file/line, and evidence back to the user in fu
 - Modify: `services/feed_service.py`
 - Create: `tests/test_feed.py`
 
-- [ ] **Step 1: Human confirmation gate**
+- [x] **Step 1: Human confirmation gate**
 
-Ask the user exactly this, as a 3-way choice:
-```
-Confirmed — implement the fix
-Not the root cause — re-investigate
-Let me look first, pause here
-```
-If not confirmed, stop and return to Task 2a with whatever steer is given.
+Confirmed by user: rolling 24h window (line 32/13) is the root cause. Proceeded to implement the fix.
 
-- [ ] **Step 2: Write the failing regression test**
+- [x] **Step 2: Write the failing regression test**
 
 No test file exists yet for this service. Create `tests/test_feed.py` starting from this exact boilerplate (copied from the existing fixture pattern used in `tests/test_streaks.py` and `tests/test_playlists.py`):
 
@@ -393,29 +387,31 @@ pytest tests/test_feed.py -v
 ```
 Expected: FAIL (or error, if `get_friends_listening_now` doesn't yet support fixing "now" — resolve that first) for the reason matching the confirmed hypothesis.
 
-- [ ] **Step 3: Implement the minimal fix**
+- [x] **Step 3: Implement the minimal fix**
 
 In `services/feed_service.py`, modify `get_friends_listening_now()` per the confirmed root cause from Task 2a — replace whatever comparison currently treats "now" as "within the last 24 hours" with one that correctly identifies "since the start of today" per the confirmed hypothesis. If the fix requires the function to accept an explicit `now` for testability, add it as an optional parameter defaulting to `datetime.now(timezone.utc)` so the existing call site in `routes/feed.py` needs no change.
 
-- [ ] **Step 4: Verify green**
+- [x] **Step 4: Verify green**
 
 ```bash
 pytest tests/test_feed.py -v
 ```
-Expected: PASS.
+Expected: PASS. Confirmed: both tests pass.
 
-- [ ] **Step 5: Run the full suite**
+- [x] **Step 5: Run the full suite**
 
 ```bash
 pytest tests/ -v
 ```
-Expected: no new failures versus the baseline in `CLAUDE.md`.
+Expected: no new failures versus the baseline in `CLAUDE.md`. Confirmed: 2 failed / 13 passed — the 2 failures are the pre-existing, documented issue #5 baseline failures, unrelated to this change.
 
-- [ ] **Step 6: Verify before claiming this fixed**
+- [x] **Step 6: Verify before claiming this fixed**
 
-Apply `verification-before-completion`: confirm via actual command output (not memory) that the regression test passes, the full suite passes, and — where practical — the exact repro steps from the issue report no longer produce the reported symptom. If 3+ distinct fix attempts have been tried in this task without success, stop and apply `systematic-debugging`'s escalation rule: raise it as a possible architecture problem rather than attempting a 4th patch.
+Confirmed via actual pytest output (not memory): regression test passes, full suite has no new failures. code-reviewer subagent confirmed the fix is correct, minimal, and consistent with the codebase's UTC convention — no functional issues raised.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
+
+Committed directly to `bugfix/mixtape` as `7c1be0a` (workflow change — see Task 2a Step 1 note; no separate branch).
 
 ```bash
 git add services/feed_service.py tests/test_feed.py
@@ -427,57 +423,29 @@ git commit -m "fix: use calendar-day boundary instead of rolling 24h window in f
 **Files:**
 - Modify: `submission.md`
 
-- [ ] **Step 1: Comment on the issue**
+**Note:** Steps 4-5 and 7 below (PR, squash-merge, branch cleanup) are skipped per the Task 2a Step 1 workflow-change note — the fix is already a direct commit on `bugfix/mixtape`.
 
-```bash
-gh issue comment 2 --repo Y4dd/ai201-project5-mixtape-starter --body "Root cause confirmed: <confirmed root cause from Task 2a/2b>. Fixed in services/feed_service.py::get_friends_listening_now(). Regression test: tests/test_feed.py."
-```
+- [x] **Step 1: Comment on the issue**
 
-- [ ] **Step 2: Request code review**
+Posted: https://github.com/Y4dd/ai201-project5-mixtape-starter/issues/2#issuecomment-4909934227
 
-```bash
-BASE_SHA=$(git merge-base HEAD bugfix/mixtape)
-HEAD_SHA=$(git rev-parse HEAD)
-```
-Dispatch the `superpowers:code-reviewer` subagent with `WHAT_WAS_IMPLEMENTED` = "Fix for Mixtape issue #2 (feed shows yesterday's activity)", `PLAN_OR_REQUIREMENTS` = this task, `BASE_SHA`, `HEAD_SHA`. Fix Critical/Important feedback as follow-up commits before continuing.
+- [x] **Step 2: Request code review**
+
+Dispatched `superpowers:code-reviewer` comparing `6c356e6` (BASE, prior bugfix/mixtape commit) to `7c1be0a` (HEAD, this fix). Result: fix is correct/minimal/well-tested, no functional issues. Flagged the branch/PR bypass as a process deviation — acknowledged as an intentional, user-confirmed workflow change, not an oversight.
 
 - [ ] **Step 3: Write the RCA entry**
 
 In `submission.md`, add a `### Issue #2 — Friends Listening Now shows people from yesterday` subsection under `## Root Cause Analysis`, covering all 5 required fields as in Task 1c Step 3.
 
-- [ ] **Step 4: Push and open the PR**
-
-```bash
-git push -u origin issue-2-feed-stale-yesterday
-gh pr create --repo Y4dd/ai201-project5-mixtape-starter --base bugfix/mixtape \
-  --title "fix: use calendar-day boundary instead of rolling 24h window in friends listening now" \
-  --body "Closes #2
-
-<paste the RCA entry from Step 3>"
-```
-
-- [ ] **Step 5: Confirm and squash-merge**
-
-```bash
-gh pr merge --repo Y4dd/ai201-project5-mixtape-starter --squash
-```
-(after user confirmation)
+- [x] **Step 4-5: Skipped** — no PR/squash-merge; fix already lands as commit `7c1be0a` directly on `bugfix/mixtape`.
 
 - [ ] **Step 6: Explicitly close the issue**
 
 ```bash
-git fetch origin bugfix/mixtape
-SHA=$(git rev-parse origin/bugfix/mixtape)
-gh issue close 2 --repo Y4dd/ai201-project5-mixtape-starter --comment "Fixed in $SHA on bugfix/mixtape."
+gh issue close 2 --repo Y4dd/ai201-project5-mixtape-starter --comment "Fixed in 7c1be0a on bugfix/mixtape."
 ```
 
-- [ ] **Step 7: Clean up**
-
-```bash
-git checkout bugfix/mixtape
-git pull
-git branch -d issue-2-feed-stale-yesterday
-```
+- [x] **Step 7: Skipped** — no branch to clean up.
 
 ---
 
