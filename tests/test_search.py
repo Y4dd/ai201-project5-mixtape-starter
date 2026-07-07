@@ -137,3 +137,42 @@ def test_search_no_duplicates_same_song_shared_twice(app, seed_songs):
         results = search_songs("Crown Heights")
         matching = [r for r in results if r["title"] == "Crown Heights Anthem"]
         assert len(matching) == 1
+
+
+def test_search_dedup_prefers_more_complete_duplicate(app, seed_songs):
+    """
+    When duplicate Song rows differ in completeness (tags/album), dedup
+    should keep the fuller record rather than whichever row the DB
+    happens to return first.
+    """
+    with app.app_context():
+        user = seed_songs["user"]
+        tag_soul = Tag(name="soul-test-only")
+        db.session.add(tag_soul)
+        db.session.flush()
+
+        # Sparse duplicate, inserted FIRST (would win under naive first-seen dedup).
+        sparse = Song(
+            title="Echoes Down Below", artist="Faint Signal",
+            genre="ambient", shared_by=user.id
+        )
+        db.session.add(sparse)
+        db.session.flush()
+
+        # Fuller duplicate, inserted SECOND, with a tag and an album.
+        full = Song(
+            title="Echoes Down Below", artist="Faint Signal",
+            genre="ambient", album="Faint Signal EP", shared_by=user.id
+        )
+        db.session.add(full)
+        db.session.flush()
+        db.session.execute(
+            song_tags.insert().values(song_id=full.id, tag_id=tag_soul.id)
+        )
+        db.session.commit()
+
+        results = search_songs("Echoes Down Below")
+        matching = [r for r in results if r["title"] == "Echoes Down Below"]
+        assert len(matching) == 1
+        assert matching[0]["tags"] == ["soul-test-only"]
+        assert matching[0]["album"] == "Faint Signal EP"
