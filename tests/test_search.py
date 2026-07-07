@@ -117,3 +117,23 @@ def test_search_returns_empty_for_no_match(app, seed_songs):
     with app.app_context():
         results = search_songs("zzz_no_match_zzz")
         assert results == []
+
+
+def test_search_no_duplicates_same_song_shared_twice(app, seed_songs):
+    """
+    Two distinct Song rows sharing the same title/artist (e.g. the same
+    song shared independently by two different users) should collapse to
+    one entry in search results, not appear once per row.
+    """
+    with app.app_context():
+        user = seed_songs["user"]
+        duplicate = Song(
+            title="Crown Heights Anthem", artist="Borough Kings",
+            genre="rap", shared_by=user.id
+        )
+        db.session.add(duplicate)
+        db.session.commit()
+
+        results = search_songs("Crown Heights")
+        matching = [r for r in results if r["title"] == "Crown Heights Anthem"]
+        assert len(matching) == 1

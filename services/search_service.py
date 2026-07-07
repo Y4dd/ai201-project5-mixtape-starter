@@ -34,7 +34,15 @@ def search_songs(query: str) -> list[dict]:
         .all()
     )
 
-    return [song.to_dict() for song in results]
+    seen = set()
+    deduped = []
+    for song in results:
+        key = (song.title.lower(), song.artist.lower())
+        if key not in seen:
+            seen.add(key)
+            deduped.append(song)
+
+    return [song.to_dict() for song in deduped]
 
 
 def get_song(song_id: str) -> dict:
