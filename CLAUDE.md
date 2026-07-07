@@ -71,11 +71,11 @@ Each bug is worked as its own GitHub issue (#1–#5 on the fork) through a full 
 7. **Check side effects**: re-run `pytest tests/` in full, and check other code touching the same data/feature (e.g., a streak fix should be re-checked against both sides of the day boundary).
 8. **Commit** on the issue branch using a conventional message: `fix: <description>`.
 9. **Comment on the issue** (`gh issue comment <N>`) with the confirmed root cause and what changed, before opening the PR.
-10. **Open a PR** from the issue branch into `bugfix/mixtape` (`gh pr create --base bugfix/mixtape`), title = the conventional commit message, body includes `Closes #<N>` and the root-cause analysis writeup.
-11. **Squash-merge** the PR (`gh pr merge --squash`) — this is what keeps `bugfix/mixtape` at one commit per fix, satisfying `project.md`'s submission checkpoint even though the work happened on a branch.
-12. **Explicitly close the issue**: `gh issue close <N> --comment "Fixed in <squash-sha> on bugfix/mixtape."` — this repo's default branch is `main`, not `bugfix/mixtape`, so GitHub's `Closes #N` auto-close keyword does not fire on merge here. `Closes #N` in the PR body still creates the cross-reference; closing the issue itself must be explicit.
-13. Delete the issue branch after merge.
-14. Add/finalize that issue's root-cause-analysis entry in `submission.md` before starting the next issue — write it while the investigation is fresh, not in a batch at the end.
+10. **Write the root-cause-analysis entry** for this issue in `submission.md` before opening the PR — write it while the investigation is fresh, not in a batch at the end.
+11. **Open a PR** from the issue branch into `bugfix/mixtape` (`gh pr create --base bugfix/mixtape`), title = the conventional commit message, body includes `Closes #<N>` and the root-cause analysis writeup from step 10.
+12. **Squash-merge** the PR (`gh pr merge --squash`) — this is what keeps `bugfix/mixtape` at one commit per fix, satisfying `project.md`'s submission checkpoint even though the work happened on a branch.
+13. **Explicitly close the issue**: `gh issue close <N> --comment "Fixed in <squash-sha> on bugfix/mixtape."` — this repo's default branch is `main`, not `bugfix/mixtape`, so GitHub's `Closes #N` auto-close keyword does not fire on merge here. `Closes #N` in the PR body still creates the cross-reference; closing the issue itself must be explicit.
+14. **Clean up**: delete the issue branch after merge.
 
 Each of `project.md`'s 4 milestones also gets its own short planning pass before execution — don't roll straight from finishing one milestone's checklist into the next without at least a brief plan for how you'll approach it.
 
