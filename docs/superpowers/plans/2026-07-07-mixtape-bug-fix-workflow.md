@@ -48,7 +48,7 @@ Replace with:
 
 - [x] **Step 3: Commit directly to bugfix/mixtape**
 
-  Done — commit `9e32e83`. **Not yet done:** the spec-compliance and code-quality review stages for Task 0 (per `subagent-driven-development`) have not run yet — do those first when resuming, before starting Task 1a.
+  Done — commit `9e32e83`. Spec-compliance review: passed clean. Code-quality review: found one Important issue (step 10 referenced an RCA writeup not authored until step 14) and one related Minor issue (lost bold lead-ins on steps 13/14) — both fixed in commit `f6e15d1`. Task 0 fully complete; ready to start Task 1a.
 
 ```bash
 git add CLAUDE.md
