@@ -1,5 +1,26 @@
 # Mixtape Bug Hunt — Submission
 
+## AI Usage
+
+Rather than improvising a different approach per bug, I designed one standardized pipeline up front (`docs/superpowers/specs/2026-07-07-mixtape-bug-fix-workflow-design.md`) and ran it identically for all 5 issues, so every fix got the same rigor instead of the process drifting as I went. The core principle: **the AI never writes a fix from its own unconfirmed hypothesis — it investigates and proposes, I confirm, then it implements.** Concretely, each issue went through the same five stages:
+
+1. **Investigate (dispatched to a fresh `Explore` subagent, no fix code allowed).** I gave it the verbatim GitHub issue report plus pointers to already-verified facts (affected service file, existing test baseline, relevant codebase conventions) so it wasn't rediscovering things I already knew. Its only job was to reproduce the bug, trace the call chain, and return exactly one hypothesis — "I think X is the root cause because Y" — with the specific file/line and supporting evidence. It was explicitly instructed to stop there: no edits, no proposed fix.
+2. **Human confirmation gate.** The hypothesis and evidence were relayed to me as-is and I read the flagged code myself before anything was implemented, choosing one of: confirmed → implement; not the root cause → re-investigate; or let me look first. No fix was ever written against an unconfirmed hypothesis.
+3. **Fix via TDD.** Once confirmed, write one regression test that fails against current code for the confirmed reason, watch it fail correctly, implement the minimal fix, watch it pass, then run the full suite to check for regressions elsewhere.
+4. **Independent code review** (a `code-reviewer` subagent) against the diff before I considered the fix done, on top of my own reading.
+5. **Document while fresh** — RCA entry written immediately, not batched at the end.
+
+This split matches what the course explicitly asks for ("you find the suspicious code → AI helps you understand it → you verify the diagnosis by reading it yourself") rather than optimizing for fastest fix — the gate exists specifically so I'm the one calling the root cause, not the model.
+
+Where this mattered most in practice, and where I had to override or catch the AI rather than trust it outright:
+
+- **Issue #3 (duplicate search results):** the codebase's own pre-existing test carried a plausible-looking but wrong theory (duplicate rows caused by tag-count join fan-out). I didn't take that test's assumption at face value — I independently called `search_songs()` against real seeded data myself and disproved it (a 3-tag song returned exactly 1 result) *before* dispatching the investigation subagent, and told it explicitly not to re-derive that dead end. The subagent then found the real trigger (two distinct `Song` rows sharing a title/artist), which I re-verified myself against the actual SQLAlchemy dedup-by-identity behavior in the installed library source, not just on the subagent's word.
+- **Issue #3, again, at review time:** the code-reviewer subagent caught a real edge case in my first fix that I hadn't tested — naive first-seen dedup could silently drop a more-complete duplicate's tags/album depending on DB row order. I verified this was real by reproducing both insertion orders myself before accepting the fix, rather than accepting the review comment on faith.
+- **Issue #2:** the review subagent's pass was mostly confirmatory (fix correct/minimal/consistent with the codebase's UTC convention), which is a case where AI-assisted review didn't surface anything new — worth being honest about, since not every review pass earns its keep.
+- **Issue #4:** this is the one issue where I didn't dispatch an investigation subagent at all — `CLAUDE.md`'s own architecture notes already named the exact missing call (`rate_song()` lacking the `create_notification(...)` step that its sibling `add_to_playlist()` has), and reading the file directly confirmed it with no ambiguity left to investigate. I used the subagent stage only where there was a real hypothesis to form, not as a rubber stamp on every issue.
+
+Across all five, AI was consistently useful for *explaining and tracing* code I pointed it at, and consistently something I had to verify rather than trust for *diagnosing* — every hypothesis was checked against the actual code or actual runtime behavior before a single line of fix code was written.
+
 ## Codebase Map
 
 ### Main files
